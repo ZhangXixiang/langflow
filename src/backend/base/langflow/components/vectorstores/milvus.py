@@ -11,6 +11,7 @@ from langflow.io import (
     StrInput,
 )
 from langflow.schema.data import Data
+import json
 
 
 class MilvusVectorStoreComponent(LCVectorStoreComponent):
@@ -96,7 +97,33 @@ class MilvusVectorStoreComponent(LCVectorStoreComponent):
                 documents.append(_input)
 
         if documents:
-            milvus_store.add_documents(documents)
+            # Milvus schema inference does not accept array/dict metadata (e.g. key 'files': []).
+            # Sanitize metadata by converting non-scalar values to JSON strings to ensure VARCHAR dtype.
+            sanitized_documents = []
+            for doc in documents:
+                try:
+                    metadata = getattr(doc, "metadata", {}) or {}
+                    if isinstance(metadata, dict):
+                        sanitized: dict = {}
+                        for key, value in metadata.items():
+                            # Normalize None to empty string to avoid dtype NONE in Milvus schema inference
+                            if value is None:
+                                sanitized[key] = ""
+                                continue
+                            if isinstance(value, (str, int, float, bool)):
+                                sanitized[key] = value
+                            else:
+                                try:
+                                    sanitized[key] = json.dumps(value, ensure_ascii=False)
+                                except Exception:  # noqa: BLE001
+                                    sanitized[key] = str(value)
+                        doc.metadata = sanitized
+                except Exception:  # noqa: BLE001
+                    # Best-effort sanitization; proceed with original document on failure
+                    pass
+                sanitized_documents.append(doc)
+
+            milvus_store.add_documents(sanitized_documents)
 
         return milvus_store
 

@@ -1,6 +1,8 @@
 import io
 import json
 import zipfile
+import logging
+
 from datetime import datetime, timezone
 from typing import Annotated
 from urllib.parse import quote
@@ -35,6 +37,8 @@ from langflow.services.database.models.folder.pagination_model import FolderWith
 
 router = APIRouter(prefix="/projects", tags=["Projects"])
 
+# 在每个文件的顶部进行初始化
+logger = logging.getLogger(__name__)
 
 @router.post("/", response_model=FolderRead, status_code=201)
 async def create_project(
@@ -109,6 +113,7 @@ async def read_projects(
             )
         ).all()
         projects = [project for project in projects if project.name != STARTER_FOLDER_NAME]
+        logging.exception(f"i am a log test: {projects}")
         return sorted(projects, key=lambda x: x.name != DEFAULT_FOLDER_NAME)
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e)) from e

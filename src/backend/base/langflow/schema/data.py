@@ -144,9 +144,26 @@ class Data(BaseModel):
         """
         data_copy = self.data.copy()
         text = data_copy.pop(self.text_key, self.default_value)
+        
+        # Serialize metadata to ensure JSON compatibility for vector stores
+        serialized_metadata = {}
+        for key, value in data_copy.items():
+            try:
+                # Test if value is JSON serializable
+                json.dumps(value)
+                serialized_metadata[key] = value
+            except (TypeError, ValueError):
+                # Use custom serializer for non-JSON serializable objects
+                try:
+                    serialized_metadata[key] = custom_serializer(value)
+                except TypeError:
+                    # Skip non-serializable values with a warning
+                    logger.warning(f"Skipping non-serializable metadata key '{key}' of type {type(value)}")
+                    continue
+        
         if isinstance(text, str):
-            return Document(page_content=text, metadata=data_copy)
-        return Document(page_content=str(text), metadata=data_copy)
+            return Document(page_content=text, metadata=serialized_metadata)
+        return Document(page_content=str(text), metadata=serialized_metadata)
 
     def to_lc_message(
         self,

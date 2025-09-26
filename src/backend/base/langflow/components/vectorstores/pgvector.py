@@ -30,16 +30,27 @@ class PGVectorStoreComponent(LCVectorStoreComponent):
     @check_cached_vector_store
     def build_vector_store(self) -> PGVector:
         # Convert DataFrame to Data if needed using parent's method
-        self.ingest_data = self._prepare_ingest_data()
+        prepared_data = self._prepare_ingest_data()
 
         documents = []
-        for _input in self.ingest_data or []:
+        for _input in prepared_data or []:
             if isinstance(_input, Data):
                 documents.append(_input.to_lc_document())
             else:
                 documents.append(_input)
 
+        # Validate required parameters
+        if not self.pg_server_url:
+            raise ValueError("PostgreSQL Server Connection String is required")
+        if not self.collection_name:
+            raise ValueError("Table name is required")
+        if not self.embedding:
+            raise ValueError("Embedding model is required")
+
         connection_string_parsed = transform_connection_string(self.pg_server_url)
+        
+        if not connection_string_parsed:
+            raise ValueError("Failed to parse PostgreSQL connection string")
 
         if documents:
             pgvector = PGVector.from_documents(

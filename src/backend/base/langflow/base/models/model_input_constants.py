@@ -7,6 +7,7 @@ from langflow.components.azure.azure_openai import AzureChatOpenAIComponent
 from langflow.components.google.google_generative_ai import GoogleGenerativeAIComponent
 from langflow.components.groq.groq import GroqModel
 from langflow.components.nvidia.nvidia import NVIDIAModelComponent
+from langflow.components.ollama.ollama import ChatOllamaComponent
 from langflow.components.openai.openai_chat_model import OpenAIModelComponent
 from langflow.components.sambanova.sambanova import SambaNovaComponent
 from langflow.inputs.inputs import InputTypes, SecretStrInput
@@ -50,8 +51,11 @@ def process_inputs(component_data: Input):
     elif component_data.name == "tool_model_enabled":
         component_data.advanced = True
         component_data.value = True
-    elif component_data.name in {"temperature", "base_url"}:
+    elif component_data.name in {"temperature"}:
         component_data = set_advanced_true(component_data)
+    elif component_data.name in {"openai_api_base"}:
+        # Make OpenAI base URL visible on the Agent card
+        component_data.advanced = False
     elif component_data.name == "model_name":
         component_data = set_real_time_refresh_false(component_data)
         component_data = add_combobox_true(component_data)
@@ -181,6 +185,20 @@ def _get_sambanova_inputs_and_fields():
 MODEL_PROVIDERS_DICT: dict[str, ModelProvidersDict] = {}
 
 # Try to add each provider
+try:
+    # Ollama
+    ollama_inputs = get_filtered_inputs(ChatOllamaComponent)
+    MODEL_PROVIDERS_DICT["Ollama"] = {
+        "fields": create_input_fields_dict(ollama_inputs, ""),
+        "inputs": ollama_inputs,
+        "prefix": "",
+        "component_class": ChatOllamaComponent(),
+        "icon": ChatOllamaComponent.icon,
+        "is_active": True,
+    }
+except Exception:
+    pass
+
 try:
     openai_inputs, openai_fields = _get_openai_inputs_and_fields()
     MODEL_PROVIDERS_DICT["OpenAI"] = {

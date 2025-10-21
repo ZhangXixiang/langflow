@@ -27,7 +27,8 @@ def set_advanced_true(component_input):
     return component_input
 
 
-MODEL_PROVIDERS_LIST = ["Anthropic", "Google Generative AI", "Groq", "OpenAI"]
+# Use dynamic list built from ACTIVE_MODEL_PROVIDERS_DICT so providers like Ollama appear
+MODEL_PROVIDERS_LIST = sorted(MODEL_PROVIDERS)
 
 
 class AgentComponent(ToolCallingAgentComponent):
@@ -46,12 +47,12 @@ class AgentComponent(ToolCallingAgentComponent):
             display_name="Model Provider",
             info="The provider of the language model that the agent will use to generate responses.",
             options=[*MODEL_PROVIDERS_LIST, "Custom"],
-            value="OpenAI",
+            value="OpenAI" if "OpenAI" in MODEL_PROVIDERS_LIST else (MODEL_PROVIDERS_LIST[0] if MODEL_PROVIDERS_LIST else "Custom"),
             real_time_refresh=True,
             input_types=[],
             options_metadata=[MODELS_METADATA[key] for key in MODEL_PROVIDERS_LIST] + [{"icon": "brain"}],
         ),
-        *MODEL_PROVIDERS_DICT["OpenAI"]["inputs"],
+        *MODEL_PROVIDERS_DICT[("OpenAI" if "OpenAI" in MODEL_PROVIDERS_DICT else next(iter(MODEL_PROVIDERS_DICT)))]["inputs"],
         MultilineInput(
             name="system_prompt",
             display_name="Agent Instructions",
@@ -178,7 +179,24 @@ class AgentComponent(ToolCallingAgentComponent):
 
     def delete_fields(self, build_config: dotdict, fields: dict | list[str]) -> None:
         """Delete specified fields from build_config."""
+        # Protect base Agent fields from accidental deletion when switching providers
+        protected_fields = {
+            "code",
+            "_type",
+            "agent_llm",
+            "tools",
+            "input_value",
+            "add_current_date_tool",
+            "system_prompt",
+            "agent_description",
+            "max_iterations",
+            "handle_parsing_errors",
+            "verbose",
+            "n_messages",
+        }
         for field in fields:
+            if field in protected_fields:
+                continue
             build_config.pop(field, None)
 
     def update_input_types(self, build_config: dotdict) -> dotdict:

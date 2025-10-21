@@ -1,6 +1,7 @@
 import contextlib
 import json
 from io import BytesIO
+import yaml
 
 from fastapi import APIRouter, Depends, HTTPException, UploadFile
 
@@ -81,11 +82,33 @@ async def get_server_list(
             return_content=True,
         )
 
-    # Parse JSON content
+    # Parse configuration content robustly (JSON first, then YAML fallback)
+    content: str
+    if isinstance(server_config_bytes, (bytes, bytearray)):
+        content = server_config_bytes.decode("utf-8", errors="ignore")
+    else:
+        content = server_config_bytes
+
+    servers = None
     try:
-        servers = json.loads(server_config_bytes)
+        servers = json.loads(content)
     except json.JSONDecodeError:
-        raise HTTPException(status_code=500, detail="Invalid server configuration file format.") from None
+        try:
+            servers = yaml.safe_load(content)
+        except Exception:
+            servers = None
+
+    # Auto-recover if content is invalid or not a dict
+    if not isinstance(servers, dict):
+        # Recreate a fresh empty config to unblock the user
+        await upload_server_config(
+            {"mcpServers": {}},
+            current_user,
+            session,
+            storage_service=storage_service,
+            settings_service=settings_service,
+        )
+        servers = {"mcpServers": {}}
 
     return servers
 

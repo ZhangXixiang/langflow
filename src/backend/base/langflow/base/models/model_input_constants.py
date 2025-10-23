@@ -8,6 +8,7 @@ from langflow.components.google.google_generative_ai import GoogleGenerativeAICo
 from langflow.components.groq.groq import GroqModel
 from langflow.components.nvidia.nvidia import NVIDIAModelComponent
 from langflow.components.ollama.ollama import ChatOllamaComponent
+from langflow.components.qwen.qwen_openai_compatible import QwenOpenAICompatComponent
 from langflow.components.openai.openai_chat_model import OpenAIModelComponent
 from langflow.components.sambanova.sambanova import SambaNovaComponent
 from langflow.inputs.inputs import InputTypes, SecretStrInput
@@ -58,7 +59,9 @@ def process_inputs(component_data: Input):
         component_data.advanced = False
     elif component_data.name == "model_name":
         component_data = set_real_time_refresh_false(component_data)
-        component_data = add_combobox_true(component_data)
+        # Only dropdowns support combobox; guard to avoid Pydantic extra field errors
+        if hasattr(component_data, "combobox"):
+            component_data = add_combobox_true(component_data)
         component_data = add_info(
             component_data,
             "To see the model names, first choose a provider. Then, enter your API key and click the refresh button "
@@ -194,6 +197,20 @@ try:
         "prefix": "",
         "component_class": ChatOllamaComponent(),
         "icon": ChatOllamaComponent.icon,
+        "is_active": True,
+    }
+except Exception:
+    pass
+
+try:
+    # Qwen (OpenAI-compatible)
+    qwen_inputs = get_filtered_inputs(QwenOpenAICompatComponent)
+    MODEL_PROVIDERS_DICT["Qwen"] = {
+        "fields": create_input_fields_dict(qwen_inputs, ""),
+        "inputs": qwen_inputs,
+        "prefix": "",
+        "component_class": QwenOpenAICompatComponent(),
+        "icon": QwenOpenAICompatComponent.icon,
         "is_active": True,
     }
 except Exception:

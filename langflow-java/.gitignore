@@ -1,0 +1,9 @@
+target/
+!.mvn/wrapper/maven-wrapper.jar
+.mvn/wrapper/maven-wrapper.jar
+.mvn/
+.idea/
+*.iml
+*.log
+.DS_Store
+langflow-java.zip
